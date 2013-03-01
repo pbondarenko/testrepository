@@ -8,17 +8,20 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
-#include <sys/un.h>
-int main(){
-	int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+#include <netinet/in.h>
+#include <unistd.h>
+#include <getopt.h>
+int main(int argc, char **argv){
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
 		perror("socket client");
 		exit(1);
 	}
 
-	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	strcpy(addr.sun_path, "server");
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(1234);
 	if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         perror("connect client");
@@ -26,7 +29,7 @@ int main(){
     }
 
     char message[1024];
-    scanf("%s\n", message);
+    scanf("%s", message);
     printf("Client: send message to Server: %s\n", message);
     send(sock, message, sizeof(message), 0);
     char buf[1024];

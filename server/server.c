@@ -8,32 +8,32 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
-#include <sys/un.h>
+#include <netinet/in.h>
 int main(){
 
-	int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
 		perror("socket server");
 		exit(1);
 	}
-	unlink("server");
-	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	strcpy(addr.sun_path, "server");
+	unlink("/tmp/socket");
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(1234);
 
 	if(bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0){
 		perror("bind server");
 		exit(2);
 	}
 
-	listen(sock, 10);
+	listen(sock, 1);
 
 	char buf[1024];
 
 	while(1){
-		struct sockaddr_un caddr;
-		int clen;
-		int clientSocket= accept(sock, (struct sockaddr *)& caddr, &clen);
+
+		int clientSocket= accept(sock, NULL, NULL);
 		if(clientSocket < 0){
 			perror("accept server");
 			exit(3);
