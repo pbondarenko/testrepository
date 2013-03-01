@@ -12,6 +12,30 @@
 #include <unistd.h>
 #include <getopt.h>
 int main(int argc, char **argv){
+	char path[1024];
+	static struct option long_options[] =
+	{
+			{"get", required_argument, 0, 'get'},
+
+    };
+
+   int option_index = 0;
+
+   int c = getopt_long (argc, argv, "get", long_options, &option_index);
+
+   switch (c){
+	   case 'get':
+		   strcpy(path, optarg);
+		   break;
+	   default:
+		   printf("Client: haven't query");
+		   return 0;
+
+   }
+
+   printf("Client: want file %s\n", path);
+
+
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
 		perror("socket client");
@@ -28,14 +52,38 @@ int main(int argc, char **argv){
         exit(2);
     }
 
-    char message[1024];
-    scanf("%s", message);
-    printf("Client: send message to Server: %s\n", message);
-    send(sock, message, sizeof(message), 0);
-    char buf[1024];
 
-    recv(sock, buf, 1024, 0);
-    printf("Client: get Servers message : %s\n", buf);
+    printf("Client: want file from Server: %s\n", path);
+    send(sock, path, sizeof(path), 0);
+    char name[1024];
+    int i = strlen(path)-1;
+    while(i > 0 && path[i] != '/') i--;
+    i++;
+    int j;
+    for(j = i; j < strlen(path); j++)
+    	name[j-i] = path[j];
+    printf("Client: file name %s\n", name);
+
+    int was = 0;
+    char buf[1024];
+    int fd;
+    while(recv(sock, buf, 1024, 0)){
+    	 if(!was && strcmp(buf, "file not exist") == 0){
+			printf("Client: file not exist\n");
+			close(sock);
+			return 0;
+		}
+    	fd = fopen(name, "wb");
+    	was = 1;
+    	for(i = 0; i < 1024; i++){
+    		if(buf[i] == 10)
+    			break;
+    		fprintf(fd, "%c", buf[i]);
+    	}
+    }
+    fclose(fd);
+
+    printf("Client: ok\n");
     close(sock);
 
 	return 0;

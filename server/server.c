@@ -9,6 +9,27 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <netinet/in.h>
+#include <stdlib.h>
+#include <string.h>
+char buf[10];
+char * itoa(int i){
+
+	memset(buf, 0, sizeof(buf));
+	int j = 0;
+	do{
+		buf[j++] = i%10 + '0';
+		i/=10;
+	}while(i > 0);
+
+	for(i = 0 ;i < j/2;i++){
+
+		char c = buf[i];
+		buf[i] = buf[j-i-1];
+		buf[j-i-1] = c;
+	}
+
+	return buf;
+}
 int main(){
 
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -29,8 +50,6 @@ int main(){
 
 	listen(sock, 1);
 
-	char buf[1024];
-
 	while(1){
 
 		int clientSocket= accept(sock, NULL, NULL);
@@ -38,11 +57,52 @@ int main(){
 			perror("accept server");
 			exit(3);
 		}
-		int read = recv(clientSocket, buf, 1024, 0);
-		printf("Server: get Clients message: %s\n", buf);
+		char path[1024];
+		int read = recv(clientSocket, path, 1024, 0);
+		printf("Server: get file path: %s\n", path);
 		if(read <= 0) continue;
-		printf("Server: send message to Client: %s\n", buf);
-		send(clientSocket, buf, strlen(buf), 0);
+		int fd;
+
+		if(fd = fopen(path, "rb")){
+			printf("Server: file exists\n");
+			int size, i;
+
+			fseek(fd, 0, SEEK_END);
+			size = ftell(fd);
+			fseek(fd, 0, SEEK_SET);
+			printf("Server: file length: %d\n", size);
+
+			for(i = 0; i < size; i++){
+				int j;
+				if(i % 1024 == 0){
+					if(i != 0){
+						send(clientSocket, buf, 1024, 0);
+
+					}
+					for(j = 0; j < 1024; j++)
+						buf[j] = 10;
+
+
+				}
+
+				fscanf(fd, "%c", &buf[i%1024]);
+			}
+
+			send(clientSocket, buf, 1024, 0);
+
+			printf("Server: send file");
+
+			fclose(fd);
+		}else{
+
+			printf("Server: file not exist\n");
+			char message[1024];
+			strcpy(message,"file not exist");
+			printf("Server: message: %s\n", message);
+
+
+			send(clientSocket, message, sizeof(message), 0);
+		}
 		close(clientSocket);
 	}
 	close(socket);
