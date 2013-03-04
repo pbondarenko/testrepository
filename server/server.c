@@ -13,25 +13,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-char buff[10];
-char * itoa(int i){
 
-	memset(buff, 0, sizeof(buff));
-	int j = 0;
-	do{
-		buff[j++] = i%10 + '0';
-		i/=10;
-	}while(i > 0);
-
-	for(i = 0 ;i < j/2;i++){
-
-		char c = buff[i];
-		buff[i] = buff[j-i-1];
-		buff[j-i-1] = c;
-	}
-
-	return buff;
-}
 void function(void * ptr){
 	int clientSocket = (int)ptr;
 
@@ -40,37 +22,21 @@ void function(void * ptr){
 	printf("%d Server: get file path: %s\n", clientSocket, path);
 	int fd;
 	usleep(clientSocket * 1000);
-	if((fd = fopen(path, "rb")) > 0){
+	if((fd = open(path, 0)) > 0){
 
 		printf("%d Server: desc %d\n", clientSocket, fd);
 		printf("%d Server: file exists\n", clientSocket);
 		int i;
 
 		char buf[1024];
-		i = 0;
-		while(!feof(fd)){
-			int j;
-			if(i % 1024 == 0){
-				if(i != 0){
-					send(clientSocket, buf, 1024, 0);
-					puts("send");
-
-				}else
-					printf("%d Server: start reading\n", clientSocket);
-				for(j = 0; j < 1024; j++)
-					buf[j] = 10;
-
-
-			}
-			fscanf(fd, "%c", &buf[i%1024]);
-			i++;
+		int size;
+		while((size = read(fd, buf, 1024)) > 0){
+			send(clientSocket, buf, size, 0);
 		}
-		printf("%d Server: for end\n", clientSocket);
-		send(clientSocket, buf, 1024, 0);
 
-		printf("%d Server: send file\n", clientSocket);
+		printf("%d Server: sent file\n", clientSocket);
 
-		fclose(fd);
+		close(fd);
 	}else{
 
 		printf("%d Server: file not exist\n", clientSocket);

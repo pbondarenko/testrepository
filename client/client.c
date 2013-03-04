@@ -74,19 +74,13 @@ int main(int argc, char **argv){
 			return 0;
 		}
 
-    	fd = fopen(name, "wb");
+    	fd = open(name, 0);
 
-    	was = 1;
-    	for(i = 0; i < 1024; i++){
-    		if(buf[i] == 10)
-    			break;
+    	write(fd, buf, 1024);
 
-    		fprintf(fd, "%c", buf[i]);
-
-    	}
-    	printf("Client: write file\n");
     }
-    fclose(fd);
+	printf("Client: wrote file\n");
+    close(fd);
 
     printf("Client: ok\n");
     close(sock);
