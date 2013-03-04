@@ -13,6 +13,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+//#include <event2/event.h>
 
 void function(void * ptr){
 	int clientSocket = (int)ptr;
@@ -53,6 +54,28 @@ void function(void * ptr){
 	pthread_exit(0);
 }
 int main(){
+	/*
+	struct event_base *base;
+	struct evconnlistener *listener;
+	struct sockaddr_in sin;
+
+	base = event_base_new();
+	memset( &sin, 0, sizeof(sin) );
+
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_port = htons(1234);
+
+	listener = evconnlistener_new_bind(base, accept_connection_cb, NULL, (LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE), -1, (struct sockaddr *)&sin, sizeof(sin));
+	if(!listener)
+	{
+		perror( "Create listener" );
+		return 1;
+	}
+
+	event_base_dispatch(base);
+	return 0;
+*/
 	//libevent
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0){
