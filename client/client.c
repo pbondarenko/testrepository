@@ -67,19 +67,24 @@ int main(int argc, char **argv){
     int was = 0;
     char buf[1024];
     int fd;
-    while(recv(sock, buf, 1024, 0)){
+   while(recv(sock, buf, 1024, 0) > 0){
     	 if(!was && strcmp(buf, "file not exist") == 0){
 			printf("Client: file not exist\n");
 			close(sock);
 			return 0;
 		}
+
     	fd = fopen(name, "wb");
+
     	was = 1;
     	for(i = 0; i < 1024; i++){
     		if(buf[i] == 10)
     			break;
+
     		fprintf(fd, "%c", buf[i]);
+
     	}
+    	printf("Client: write file\n");
     }
     fclose(fd);
 

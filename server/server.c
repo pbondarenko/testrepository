@@ -37,50 +37,52 @@ void function(void * ptr){
 
 	char path[1024];
 	recv(clientSocket, path, 1024, 0);
-	printf("Server: get file path: %s\n", path);
+	printf("%d Server: get file path: %s\n", clientSocket, path);
 	int fd;
+	usleep(clientSocket * 1000);
+	if((fd = fopen(path, "rb")) > 0){
 
-	if(fd = fopen(path, "rb")){
-		printf("Server: file exists\n");
-		int size, i;
+		printf("%d Server: desc %d\n", clientSocket, fd);
+		printf("%d Server: file exists\n", clientSocket);
+		int i;
 
-		fseek(fd, 0, SEEK_END);
-		size = ftell(fd);
-		fseek(fd, 0, SEEK_SET);
-		printf("Server: file length: %d\n", size);
 		char buf[1024];
-		for(i = 0; i < size; i++){
+		i = 0;
+		while(!feof(fd)){
 			int j;
 			if(i % 1024 == 0){
 				if(i != 0){
 					send(clientSocket, buf, 1024, 0);
 					puts("send");
 
-				}
+				}else
+					printf("%d Server: start reading\n", clientSocket);
 				for(j = 0; j < 1024; j++)
 					buf[j] = 10;
 
 
 			}
-			printf("%d\n", i);
 			fscanf(fd, "%c", &buf[i%1024]);
+			i++;
 		}
-
+		printf("%d Server: for end\n", clientSocket);
 		send(clientSocket, buf, 1024, 0);
 
-		printf("Server: send file");
+		printf("%d Server: send file\n", clientSocket);
 
 		fclose(fd);
 	}else{
 
-		printf("Server: file not exist\n");
+		printf("%d Server: file not exist\n", clientSocket);
+
 		char message[1024];
 		strcpy(message,"file not exist");
-		printf("Server: message: %s\n", message);
+		printf("%d Server: message: %s\n", clientSocket, message);
 
 
 		send(clientSocket, message, sizeof(message), 0);
 	}
+	printf("%d Server: thread exit\n", clientSocket);
 	close(clientSocket);
 	pthread_exit(0);
 }
