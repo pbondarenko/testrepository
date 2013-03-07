@@ -11,7 +11,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <getopt.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 
 int main(int argc, char **argv){
 	char path[1024];
@@ -69,17 +70,19 @@ int main(int argc, char **argv){
     int was = 0;
     char buf[1024];
     int fd;
-   while(recv(sock, buf, 1024, 0) > 0){
-    	 if(!was && strcmp(buf, "file not exist") == 0){
+    int read;
+   while((read = recv(sock, buf, 1024, 0)) > 0){
+	   printf("Client: read %d\n", read);
+	   if(!was && strcmp(buf, "file not exist") == 0){
 			printf("Client: file not exist\n");
 			close(sock);
 			return 0;
-		}
 
-    	fd = open(name, 0);
-
-    	write(fd, buf, 1024);
-
+	   }
+	   if(!was)
+		   fd = open(name, O_CREAT|O_WRONLY);
+	   was = 1;
+	   write(fd, buf, read);
     }
 	printf("Client: wrote file\n");
     close(fd);

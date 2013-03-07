@@ -5,115 +5,140 @@
  *      Author: polina
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdio.h>
+
+#include <event.h>
+#include <event2/listener.h>
+#include <event2/buffer.h>
+#include <event2/bufferevent.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <unistd.h>
-//#include <event2/event.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-void function(void * ptr){
-	int clientSocket = (int)ptr;
+static void function_write( struct bufferevent *buf_ev, void * arg);
+static void echo_event_cb( struct bufferevent *buf_ev, short events, void *arg );
+
+/* Функция обратного вызова для события: данные готовы для чтения в buf_ev */
+static void function_read( struct bufferevent *buf_ev, void *arg )
+{
 
 	char path[1024];
-	recv(clientSocket, path, 1024, 0);
-	printf("%d Server: get file path: %s\n", clientSocket, path);
-	int fd;
-	usleep(clientSocket * 1000);
-	if((fd = open(path, 0)) > 0){
+	bufferevent_read(buf_ev, path, 1024);
+	printf("Server: get file path: %s\n", path);
+	int fd = open(path, O_RDONLY);
 
-		printf("%d Server: desc %d\n", clientSocket, fd);
-		printf("%d Server: file exists\n", clientSocket);
-		int i;
+	if(fd > 0) {
+		printf("Server: file desc %d\n", fd);
+		bufferevent_enable( buf_ev, EV_WRITE);
 
-		char buf[1024];
-		int size;
-		while((size = read(fd, buf, 1024)) > 0){
-			send(clientSocket, buf, size, 0);
-		}
+		bufferevent_setcb(buf_ev, NULL, function_write, echo_event_cb, (void *)fd);
 
-		printf("%d Server: sent file\n", clientSocket);
-
-		close(fd);
-	}else{
-
-		printf("%d Server: file not exist\n", clientSocket);
+	} else {
+		arg = NULL;
+		printf("Server: file not exist\n");
 
 		char message[1024];
 		strcpy(message,"file not exist");
-		printf("%d Server: message: %s\n", clientSocket, message);
+		printf("Server: message: %s\n", message);
 
+		bufferevent_write(buf_ev, message, 1024);
+		bufferevent_disable(buf_ev, EV_READ);
 
-		send(clientSocket, message, sizeof(message), 0);
+		//bufferevent_free(buf_ev);
 	}
-	printf("%d Server: thread exit\n", clientSocket);
-	close(clientSocket);
-	pthread_exit(0);
+	//printf("Server: file desc %d\n", (int)arg);
+
 }
-int main(){
-	/*
-	struct event_base *base;
-	struct evconnlistener *listener;
-	struct sockaddr_in sin;
+static void function_write( struct bufferevent *buf_ev, void * arg){
 
-	base = event_base_new();
-	memset( &sin, 0, sizeof(sin) );
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_port = htons(1234);
+	int fd = (int)arg;
+	printf("Server writer: file desc %d\n", fd);
+	if(fd > 0){
+		char buf[1024];
+		int size;
 
-	listener = evconnlistener_new_bind(base, accept_connection_cb, NULL, (LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE), -1, (struct sockaddr *)&sin, sizeof(sin));
-	if(!listener)
-	{
-		perror( "Create listener" );
-		return 1;
-	}
-
-	event_base_dispatch(base);
-	return 0;
-*/
-	//libevent
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if(sock < 0){
-		perror("socket server");
-		exit(1);
-	}
-	unlink("/tmp/socket");
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(1234);
-
-	if(bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0){
-		perror("bind server");
-		exit(2);
-	}
-
-	listen(sock, 10);
-	pthread_t threads;
-
-	int idxs = 0;
-	while(1){
-
-		int clientSocket= accept(sock, NULL, NULL);
-
-		if(clientSocket < 0){
-			perror("accept server");
-			exit(3);
+		memset(buf, 0, sizeof buf);
+		size = read(fd, buf, 1024);
+		printf("Server: size of buffer %d\n", size);
+		//printf("BUF: %s\n", buf);
+		if(size > 0){
+			bufferevent_write(buf_ev, buf, size);
+			bufferevent_setcb(buf_ev, NULL, function_write, echo_event_cb, (void*)fd);
+		}else{
+			close(fd);
+			printf("Server: sent file\n");
+			bufferevent_free(buf_ev);
 		}
 
 
-	    pthread_create(&threads, NULL, &function,(void *) clientSocket);
-	    pthread_detach(threads);
-	    idxs++;
+	}else{
 
-
+		bufferevent_free(buf_ev);
 	}
 
-	close(socket);
-	return 0;
+}
+static void echo_event_cb( struct bufferevent *buf_ev, short events, void *arg )
+{
+	if( events & BEV_EVENT_ERROR )
+	    perror( "error bufferevent" );
+  if( events & (BEV_EVENT_EOF | BEV_EVENT_ERROR) ){
+    bufferevent_free( buf_ev );
+    printf("Server: im free 2\n");
+  }
+}
+static void accept_error_cb( struct evconnlistener *listener, void *arg )
+{
+  struct event_base *base = evconnlistener_get_base( listener );
+  int error = EVUTIL_SOCKET_ERROR();
+  fprintf( stderr, "Ошибка %d (%s) в мониторе соединений. Завершение работы.\n",
+           error, evutil_socket_error_to_string( error ) );
+  event_base_loopexit( base, NULL );
+}
+static void accept_connection_cb( struct evconnlistener *listener,
+                   evutil_socket_t fd, struct sockaddr *addr, int sock_len,
+                   void *arg )
+{
+  /* При обработке запроса нового соединения необходимо создать для него
+     объект bufferevent */
+  struct event_base *base = evconnlistener_get_base(listener);
+  struct bufferevent *buf_ev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+
+  bufferevent_setcb( buf_ev, function_read, function_write, echo_event_cb, NULL);
+  bufferevent_enable( buf_ev, EV_READ);
+}
+
+
+int main(){
+
+  struct event_base *base;
+  struct evconnlistener *listener;
+  struct sockaddr_in sin;
+
+  base = event_base_new();
+  if(!base){
+    perror("event base" );
+    return 1;
+  }
+
+  memset(&sin, 0, sizeof(sin));
+  sin.sin_family = AF_INET;
+  sin.sin_addr.s_addr = htonl( INADDR_ANY );
+  sin.sin_port = htons(1234);
+  void * arg = NULL;
+  listener = evconnlistener_new_bind(base, accept_connection_cb, arg,
+                                     (LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE),
+                                     -1, (struct sockaddr *)&sin, sizeof(sin));
+  if(!listener){
+    perror("listener");
+    return -1;
+  }
+
+  event_base_dispatch(base);
+  return 0;
 }

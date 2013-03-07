@@ -8,6 +8,8 @@ exe/client: client/client.c
 		$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 		
 exe/server: LDFLAGS+=-lpthread
+exe/server: LDFLAGS+=-levent
+
 exe/server: server/server.c
 		$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 	
