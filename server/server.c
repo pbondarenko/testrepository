@@ -49,9 +49,8 @@ static void function_read( struct bufferevent *buf_ev, void *arg )
 		bufferevent_write(buf_ev, message, 1024);
 		bufferevent_disable(buf_ev, EV_READ);
 
-		//bufferevent_free(buf_ev);
+
 	}
-	//printf("Server: file desc %d\n", (int)arg);
 
 }
 static void function_write( struct bufferevent *buf_ev, void * arg){
@@ -66,7 +65,6 @@ static void function_write( struct bufferevent *buf_ev, void * arg){
 		memset(buf, 0, sizeof buf);
 		size = read(fd, buf, 1024);
 		printf("Server: size of buffer %d\n", size);
-		//printf("BUF: %s\n", buf);
 		if(size > 0){
 			bufferevent_write(buf_ev, buf, size);
 			bufferevent_setcb(buf_ev, NULL, function_write, echo_event_cb, (void*)fd);
