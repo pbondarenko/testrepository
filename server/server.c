@@ -84,7 +84,7 @@ static void echo_event_cb( struct bufferevent *buf_ev, short events, void *arg )
 	int fd = (int)arg;
 
 	if( events & BEV_EVENT_ERROR ){
-		//perror( "error bufferevent" );
+		perror( "error bufferevent" );
 	}
   if( events & (BEV_EVENT_EOF|BEV_EVENT_ERROR) ){
 	  if(fd >= 0){
